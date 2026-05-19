@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Contracts\DomainEventPublisher;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Mockery;
 use Tests\TestCase;
 
 class AuthApiTest extends TestCase
@@ -32,6 +34,27 @@ class AuthApiTest extends TestCase
             'role' => 'author',
         ]);
         $this->assertDatabaseCount('api_tokens', 1);
+    }
+
+    public function test_registration_publishes_domain_event(): void
+    {
+        $this->mock(DomainEventPublisher::class, function ($mock) {
+            $mock->shouldReceive('publish')
+                ->once()
+                ->with('auth.user.registered.v1', Mockery::on(function (array $data) {
+                    return $data['name'] === 'Event Author'
+                        && $data['email'] === 'event-author@example.com'
+                        && $data['role'] === 'author'
+                        && isset($data['user_id']);
+                }));
+        });
+
+        $this->postJson('/register', [
+            'name' => 'Event Author',
+            'email' => 'event-author@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])->assertCreated();
     }
 
     public function test_user_can_login_and_fetch_profile(): void

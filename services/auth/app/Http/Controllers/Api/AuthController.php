@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Contracts\DomainEventPublisher;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\ApiToken;
@@ -14,6 +15,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 class AuthController extends Controller
 {
+    public function __construct(private readonly DomainEventPublisher $events) {}
+
     public function register(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -27,6 +30,13 @@ class AuthController extends Controller
             'role' => UserRole::Author,
         ]);
         $plainToken = $this->createToken($user, 'registration');
+
+        $this->events->publish('auth.user.registered.v1', [
+            'user_id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role->value,
+        ]);
 
         return response()->json([
             'token_type' => 'Bearer',
