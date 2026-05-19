@@ -9,4 +9,7 @@ return [
     'vhost' => env('RABBITMQ_VHOST', 'blog'),
     'exchange' => env('RABBITMQ_EXCHANGE', 'domain.events'),
     'service' => 'blog',
+    'queues' => [
+        'search_indexer' => env('RABBITMQ_SEARCH_INDEXER_QUEUE', 'blog.search.indexer'),
+    ],
 ];

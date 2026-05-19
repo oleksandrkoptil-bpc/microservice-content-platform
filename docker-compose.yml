@@ -90,6 +90,24 @@ services:
     networks:
       - blog_network
 
+  blog-rabbitmq-consumer:
+    build:
+      context: ./docker/php-fpm
+      args:
+        PHP_VERSION: ${PHP_VERSION:-8.3}
+    container_name: blog_rabbitmq_consumer
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: php artisan rabbitmq:consume-blog-events
+    volumes:
+      - ./services/blog:/var/www/html
+    depends_on:
+      - rabbitmq
+      - mysql
+      - elasticsearch
+    networks:
+      - blog_network
+
   admin-nginx:
     image: nginx:${NGINX_VERSION:-1.27-alpine}
     container_name: admin_nginx

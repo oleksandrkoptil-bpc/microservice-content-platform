@@ -29,6 +29,12 @@ return [
         'cache_ttl' => env('AUTH_SERVICE_CACHE_TTL', 60),
     ],
 
+    'elasticsearch' => [
+        'url' => env('ELASTICSEARCH_HOST', 'http://elasticsearch:9200'),
+        'posts_index' => env('ELASTICSEARCH_POSTS_INDEX', 'blog_posts'),
+        'timeout' => env('ELASTICSEARCH_TIMEOUT', 10),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
