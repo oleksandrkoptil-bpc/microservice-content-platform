@@ -201,3 +201,20 @@ docker compose logs -f web-php-fpm
 docker compose down
 docker compose down -v
 ```
+
+## RabbitMQ
+
+RabbitMQ вже піднятий у Docker Compose:
+
+```text
+AMQP: http://localhost:5672
+UI:   http://localhost:15672
+```
+
+План інтеграції доменних подій лежить тут:
+
+```text
+docs/rabbitmq-integration-plan.md
+```
+
+Поки що RabbitMQ підготовлений на рівні конфігів сервісів і event catalog. Для реального publish/consume треба додати AMQP-бібліотеку або Laravel RabbitMQ queue driver.
