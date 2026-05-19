@@ -24,6 +24,9 @@ return [
 
     'auth' => [
         'url' => env('AUTH_SERVICE_URL', 'http://auth-nginx'),
+        'timeout' => env('AUTH_SERVICE_TIMEOUT', 5),
+        'retries' => env('AUTH_SERVICE_RETRIES', 1),
+        'cache_ttl' => env('AUTH_SERVICE_CACHE_TTL', 60),
     ],
 
     'ses' => [

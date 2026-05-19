@@ -30,6 +30,11 @@ return [
         'url' => env('BLOG_SERVICE_URL', 'http://blog-nginx'),
     ],
 
+    'http' => [
+        'timeout' => env('SERVICE_HTTP_TIMEOUT', 5),
+        'retries' => env('SERVICE_HTTP_RETRIES', 2),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),

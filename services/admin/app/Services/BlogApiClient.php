@@ -34,7 +34,10 @@ class BlogApiClient
 
     private function request()
     {
-        return Http::acceptJson()->withToken(session('admin_token'));
+        return Http::acceptJson()
+            ->withToken(session('admin_token'))
+            ->timeout((int) config('services.http.timeout', 5))
+            ->retry((int) config('services.http.retries', 2), 100);
     }
 
     private function url(string $path): string

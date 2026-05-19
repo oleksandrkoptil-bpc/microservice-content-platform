@@ -10,6 +10,8 @@ class AuthApiClient
     public function login(string $email, string $password): Response
     {
         return Http::acceptJson()
+            ->timeout((int) config('services.http.timeout', 5))
+            ->retry((int) config('services.http.retries', 2), 100)
             ->post($this->url('/login'), [
                 'email' => $email,
                 'password' => $password,

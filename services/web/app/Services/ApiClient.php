@@ -9,12 +9,12 @@ class ApiClient
 {
     public function getBlog(string $path, array $query = []): Response
     {
-        return Http::acceptJson()->get($this->url('blog', $path), $query);
+        return $this->request()->get($this->url('blog', $path), $query);
     }
 
     public function postBlog(string $path, array $data = [], ?string $token = null): Response
     {
-        $request = Http::acceptJson();
+        $request = $this->request();
 
         if ($token) {
             $request = $request->withToken($token);
@@ -25,7 +25,7 @@ class ApiClient
 
     public function postAuth(string $path, array $data = [], ?string $token = null): Response
     {
-        $request = Http::acceptJson();
+        $request = $this->request();
 
         if ($token) {
             $request = $request->withToken($token);
@@ -37,5 +37,12 @@ class ApiClient
     private function url(string $service, string $path): string
     {
         return rtrim(config("services.{$service}.url"), '/').'/'.ltrim($path, '/');
+    }
+
+    private function request()
+    {
+        return Http::acceptJson()
+            ->timeout((int) config('services.http.timeout', 5))
+            ->retry((int) config('services.http.retries', 2), 100);
     }
 }

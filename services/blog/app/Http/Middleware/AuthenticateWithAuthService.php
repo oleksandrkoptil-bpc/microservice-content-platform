@@ -2,14 +2,17 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\AuthServiceClient;
 use Closure;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Symfony\Component\HttpFoundation\Response;
 
 class AuthenticateWithAuthService
 {
+    public function __construct(private readonly AuthServiceClient $auth)
+    {
+    }
+
     public function handle(Request $request, Closure $next): Response
     {
         $token = $request->bearerToken();
@@ -18,26 +21,7 @@ class AuthenticateWithAuthService
             return response()->json(['message' => 'Unauthenticated.'], Response::HTTP_UNAUTHORIZED);
         }
 
-        try {
-            $response = Http::withToken($token)
-                ->acceptJson()
-                ->timeout(5)
-                ->get(rtrim(config('services.auth.url'), '/').'/me');
-        } catch (ConnectionException) {
-            return response()->json(['message' => 'Auth service unavailable.'], Response::HTTP_SERVICE_UNAVAILABLE);
-        }
-
-        if (! $response->ok()) {
-            return response()->json(['message' => 'Unauthenticated.'], Response::HTTP_UNAUTHORIZED);
-        }
-
-        $user = $response->json('user');
-
-        if (! is_array($user) || ! isset($user['id'])) {
-            return response()->json(['message' => 'Invalid auth service response.'], Response::HTTP_BAD_GATEWAY);
-        }
-
-        $request->attributes->set('auth_user', $user);
+        $request->attributes->set('auth_user', $this->auth->userFromToken($token));
 
         return $next($request);
     }

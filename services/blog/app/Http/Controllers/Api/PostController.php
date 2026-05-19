@@ -6,19 +6,22 @@ use App\Enums\PostStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PostResource;
 use App\Models\Post;
-use Illuminate\Http\Client\ConnectionException;
+use App\Services\AuthServiceClient;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class PostController extends Controller
 {
+    public function __construct(private readonly AuthServiceClient $auth)
+    {
+    }
+
     public function index(Request $request): AnonymousResourceCollection
     {
-        $authUser = $request->bearerToken() ? $this->resolveAuthUser($request) : null;
+        $authUser = $request->bearerToken() ? $this->auth->userFromToken($request->bearerToken()) : null;
         $isAdmin = ($authUser['role'] ?? null) === 'admin';
         $status = $isAdmin ? $request->query('status') : PostStatus::Published->value;
 
@@ -56,7 +59,7 @@ class PostController extends Controller
     public function show(Request $request, Post $post): PostResource
     {
         if ($post->status !== PostStatus::Published) {
-            $authUser = $request->bearerToken() ? $this->resolveAuthUser($request) : null;
+            $authUser = $request->bearerToken() ? $this->auth->userFromToken($request->bearerToken()) : null;
 
             abort_if(($authUser['role'] ?? null) !== 'admin', HttpResponse::HTTP_NOT_FOUND);
         }
@@ -122,29 +125,5 @@ class PostController extends Controller
             'tag_ids' => ['sometimes', 'array'],
             'tag_ids.*' => ['integer', 'exists:tags,id'],
         ];
-    }
-
-    private function resolveAuthUser(Request $request): array
-    {
-        try {
-            $response = Http::withToken($request->bearerToken())
-                ->acceptJson()
-                ->timeout(5)
-                ->get(rtrim(config('services.auth.url'), '/').'/me');
-        } catch (ConnectionException) {
-            abort(response()->json(['message' => 'Auth service unavailable.'], HttpResponse::HTTP_SERVICE_UNAVAILABLE));
-        }
-
-        if (! $response->ok()) {
-            abort(response()->json(['message' => 'Unauthenticated.'], HttpResponse::HTTP_UNAUTHORIZED));
-        }
-
-        $user = $response->json('user');
-
-        if (! is_array($user) || ! isset($user['id'])) {
-            abort(response()->json(['message' => 'Invalid auth service response.'], HttpResponse::HTTP_BAD_GATEWAY));
-        }
-
-        return $user;
     }
 }

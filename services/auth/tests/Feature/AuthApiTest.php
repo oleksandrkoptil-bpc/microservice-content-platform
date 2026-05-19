@@ -95,4 +95,19 @@ class AuthApiTest extends TestCase
             'role' => 'author',
         ]);
     }
+
+    public function test_login_is_rate_limited(): void
+    {
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->postJson('/login', [
+                'email' => 'missing@example.com',
+                'password' => 'wrong-password',
+            ])->assertUnprocessable();
+        }
+
+        $this->postJson('/login', [
+            'email' => 'missing@example.com',
+            'password' => 'wrong-password',
+        ])->assertTooManyRequests();
+    }
 }
