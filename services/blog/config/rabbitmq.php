@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'enabled' => env('RABBITMQ_ENABLED', false),
     'host' => env('RABBITMQ_HOST', 'rabbitmq'),
     'port' => env('RABBITMQ_PORT', 5672),
     'user' => env('RABBITMQ_USER', 'blog'),

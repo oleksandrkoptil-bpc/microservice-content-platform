@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Contracts\DomainEventPublisher;
 use App\Enums\CommentStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CommentResource;
@@ -14,6 +15,8 @@ use Illuminate\Validation\Rule;
 
 class CommentController extends Controller
 {
+    public function __construct(private readonly DomainEventPublisher $events) {}
+
     public function index(Post $post): AnonymousResourceCollection
     {
         return CommentResource::collection(
@@ -52,6 +55,13 @@ class CommentController extends Controller
 
         $comment = $post->comments()->create($data);
 
+        $this->events->publish('blog.comment.created.v1', [
+            'comment_id' => $comment->id,
+            'post_id' => $comment->post_id,
+            'author_id' => $comment->author_id,
+            'status' => $comment->status->value,
+        ]);
+
         return new CommentResource($comment);
     }
 
@@ -76,12 +86,24 @@ class CommentController extends Controller
     {
         $comment->update(['status' => CommentStatus::Approved]);
 
+        $this->events->publish('blog.comment.approved.v1', [
+            'comment_id' => $comment->id,
+            'post_id' => $comment->post_id,
+            'author_id' => $comment->author_id,
+        ]);
+
         return new CommentResource($comment);
     }
 
     public function reject(Comment $comment): CommentResource
     {
         $comment->update(['status' => CommentStatus::Rejected]);
+
+        $this->events->publish('blog.comment.rejected.v1', [
+            'comment_id' => $comment->id,
+            'post_id' => $comment->post_id,
+            'author_id' => $comment->author_id,
+        ]);
 
         return new CommentResource($comment);
     }

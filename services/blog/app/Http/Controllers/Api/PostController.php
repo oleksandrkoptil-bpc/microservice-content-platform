@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Contracts\DomainEventPublisher;
 use App\Enums\PostStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PostResource;
@@ -15,9 +16,10 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class PostController extends Controller
 {
-    public function __construct(private readonly AuthServiceClient $auth)
-    {
-    }
+    public function __construct(
+        private readonly AuthServiceClient $auth,
+        private readonly DomainEventPublisher $events,
+    ) {}
 
     public function index(Request $request): AnonymousResourceCollection
     {
@@ -52,8 +54,19 @@ class PostController extends Controller
 
         $post = Post::query()->create($data);
         $post->tags()->sync($tagIds);
+        $post->load(['category', 'tags']);
 
-        return new PostResource($post->load(['category', 'tags']));
+        $this->events->publish('blog.post.created.v1', [
+            'post_id' => $post->id,
+            'author_id' => $post->author_id,
+            'category_id' => $post->category_id,
+            'title' => $post->title,
+            'slug' => $post->slug,
+            'status' => $post->status->value,
+            'tag_ids' => $post->tags->pluck('id')->all(),
+        ]);
+
+        return new PostResource($post);
     }
 
     public function show(Request $request, Post $post): PostResource
@@ -99,15 +112,35 @@ class PostController extends Controller
             'status' => PostStatus::Published,
             'published_at' => $post->published_at ?? now(),
         ]);
+        $post->load(['category', 'tags']);
 
-        return new PostResource($post->load(['category', 'tags']));
+        $this->events->publish('blog.post.published.v1', [
+            'post_id' => $post->id,
+            'author_id' => $post->author_id,
+            'category_id' => $post->category_id,
+            'title' => $post->title,
+            'slug' => $post->slug,
+            'published_at' => $post->published_at?->toISOString(),
+            'tag_ids' => $post->tags->pluck('id')->all(),
+        ]);
+
+        return new PostResource($post);
     }
 
     public function archive(Post $post): PostResource
     {
         $post->update(['status' => PostStatus::Archived]);
+        $post->load(['category', 'tags']);
 
-        return new PostResource($post->load(['category', 'tags']));
+        $this->events->publish('blog.post.archived.v1', [
+            'post_id' => $post->id,
+            'author_id' => $post->author_id,
+            'category_id' => $post->category_id,
+            'title' => $post->title,
+            'slug' => $post->slug,
+        ]);
+
+        return new PostResource($post);
     }
 
     private function rules(?Post $post = null): array

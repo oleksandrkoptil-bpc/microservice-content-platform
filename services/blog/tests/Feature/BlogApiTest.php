@@ -2,11 +2,14 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Http;
+use App\Contracts\DomainEventPublisher;
 use App\Models\Category;
 use App\Models\Comment;
 use App\Models\Post;
+use App\Models\Tag;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Mockery;
 use Tests\TestCase;
 
 class BlogApiTest extends TestCase
@@ -103,6 +106,94 @@ class BlogApiTest extends TestCase
         $this->getJson("/posts/{$postId}")
             ->assertOk()
             ->assertJsonPath('data.comments.0.content', 'Nice post');
+    }
+
+    public function test_post_creation_publishes_domain_event(): void
+    {
+        Http::fake([
+            'auth-nginx/me' => Http::response([
+                'user' => [
+                    'id' => 10,
+                    'name' => 'Author User',
+                    'email' => 'author@example.com',
+                    'role' => 'author',
+                ],
+            ]),
+        ]);
+
+        $category = Category::query()->create([
+            'name' => 'Tech',
+            'slug' => 'tech',
+        ]);
+
+        $tag = Tag::query()->create([
+            'name' => 'Laravel',
+            'slug' => 'laravel',
+        ]);
+
+        $this->mock(DomainEventPublisher::class, function ($mock) use ($category, $tag) {
+            $mock->shouldReceive('publish')
+                ->once()
+                ->with('blog.post.created.v1', Mockery::on(function (array $data) use ($category, $tag) {
+                    return $data['author_id'] === 10
+                        && $data['category_id'] === $category->id
+                        && $data['slug'] === 'event-post'
+                        && $data['status'] === 'draft'
+                        && $data['tag_ids'] === [$tag->id]
+                        && isset($data['post_id']);
+                }));
+        });
+
+        $this->withToken('author-token')->postJson('/posts', [
+            'category_id' => $category->id,
+            'title' => 'Event post',
+            'slug' => 'event-post',
+            'content' => 'Event content',
+            'tag_ids' => [$tag->id],
+        ])->assertCreated();
+    }
+
+    public function test_comment_creation_publishes_domain_event(): void
+    {
+        Http::fake([
+            'auth-nginx/me' => Http::response([
+                'user' => [
+                    'id' => 10,
+                    'name' => 'Author User',
+                    'email' => 'author@example.com',
+                    'role' => 'author',
+                ],
+            ]),
+        ]);
+
+        $category = Category::query()->create([
+            'name' => 'Tech',
+            'slug' => 'tech',
+        ]);
+
+        $post = Post::query()->create([
+            'author_id' => 10,
+            'category_id' => $category->id,
+            'title' => 'Published post',
+            'slug' => 'published-post',
+            'content' => 'Published content',
+            'status' => 'published',
+        ]);
+
+        $this->mock(DomainEventPublisher::class, function ($mock) use ($post) {
+            $mock->shouldReceive('publish')
+                ->once()
+                ->with('blog.comment.created.v1', Mockery::on(function (array $data) use ($post) {
+                    return $data['post_id'] === $post->id
+                        && $data['author_id'] === 10
+                        && $data['status'] === 'pending'
+                        && isset($data['comment_id']);
+                }));
+        });
+
+        $this->withToken('author-token')->postJson("/posts/{$post->id}/comments", [
+            'content' => 'Event comment',
+        ])->assertCreated();
     }
 
     public function test_public_cannot_list_or_show_unpublished_posts(): void
