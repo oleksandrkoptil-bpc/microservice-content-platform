@@ -7,6 +7,7 @@ RUN apk add --no-cache \
         curl \
         git \
         icu-dev \
+        linux-headers \
         libzip-dev \
         oniguruma-dev \
         unzip \
@@ -17,6 +18,7 @@ RUN apk add --no-cache \
         mbstring \
         opcache \
         pdo_mysql \
+        sockets \
         zip
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
